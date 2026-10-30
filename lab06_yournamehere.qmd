@@ -1,0 +1,242 @@
+---
+title: "KNN and Logistic Regression"
+subtitle: "Stat 243: Lab 6"
+author: "Insert Your Name Here"
+format: pdf
+editor: source
+---
+
+## Due: Friday, Nov 13th, 11am PT.
+
+## Instructions
+
+Problem sets are a (nearly) weekly opportunity to engage with ideas relevant to content taught so far in the course. As your are working through your problem set, make sure to "Render" the document early and often. Take a look at the PDF output, as this is what you will turn in on Gradescope. Make sure the output is fully readable and is something that you are proud of. Take care to make sure code, writing, and headers are formatted neatly and presentably. 
+
+## Collaborators
+
+I collaborated with... (list names of collaborators here).
+
+
+## Goals of this problem set
+
+* Practice with kNN.
+* Practice with logistic regression
+
+**You are not allowed to use any generative AI models (like ChatGPT) on your problem set.**
+
+**The Honor Principle must guide your work on this problem set.**
+
+
+
+## Problem 0: Load packages
+
+Load any relevant packages needed for this problem set. I got you started.
+
+
+```{r}
+library(tidyverse)
+library(moderndive)
+library(ISLR)
+library(gglm)
+library(class)
+```
+
+
+# Part 1: KNN
+
+## Problem 1: The Curse of Dimensionality in KNN
+*Based on ISLR Exercise 4.4*
+
+When the number of predictors $p$ is large, there tends to be a deterioration in the performance of KNN and other *local* approaches that perform prediction using only observations that are *near* the test observation for which a prediction must be made. This phenomenon is known as the *curse of dimensionality*, and it ties into the fact that non-parametric approaches often perform poorly when $p$ is large. We now will investigate this curse.
+
+a.  Suppose that we have a set of observations, each with measurements on $p = 1$ predictor, $X$. We assume that $X$ is "uniformly distributed" on the interval $[0,1]$ --- i.e., the $X$ values in our data are randomly drawn numbers between 0 and 1. Associated with each observation is a response value, $Y$. Suppose that we wish to predict a test observation's response using only training observations with $X$ values that are within $0.05$ of the $X$ value for that test observation. For example, in order to predict the response for a test observation with $X = 0.5$, we will use training observations with $X$ values in the range $[0.45, 0.55]$. On average, what fraction of the available training observations will we use to make the prediction?
+
+b.  Now suppose that we have a set of observations, each with measurements on $p =2$ predictors $X_1$ and $X_2$. We assume that $X_1$ and $X_2$ are both "uniformly distributed" on the interval $[0,1]$. We wish to predict a test observation's response using only training observations with $X_1$ values that are within $0.05$ of the $X_1$ value for that test observation, *and* $X_2$ values that are within $0.05$ of the $X_2$ value for that test observation. For instance, in order to predict the response for a test observation with $X_1 = 0.6$ and $X_2 = 0.35$, we will use training observations that have both $X_1$ in the range $[0.55, 0.65]$ *and* $X_2$ in the range $[0.3,0.4]$. On average, what fraction of the available training observations will we use to make the prediction?
+
+c.  Now suppose that we have a set of observations on $p = 100$ predictors. Again the observations are uniformly distributed on each predictor, and again each predictor ranges in value from $0$ to $1$. We wish to predict a test observation's response using training observations with predictor values $X_k$ that are within $0.05$ of the $X_k$ values for that test observation *for all predictors* $X_k$. What fraction of the available observations will we use to make the prediction?
+
+d.  Using your answers to parts (a)-(c), argue that a drawback of KNN when $p$ is large is that there are very few training observations "near" any given test observation.
+
+
+
+
+## Problem 2: Conducting KNN 
+
+In this problem, we will apply the K-Nearest Neighbors (KNN) algorithm to data! To do so, we use code from the `class` library. *Important: Read the instructions carefully, and expect to spend a bit of time debugging code. This is part of the learning!*
+
+We first demonstrate the functionality of the `knn` function in the `class` library: The function requires 4 arguments:
+  
+  1. `train`, a matrix of *predictors* for the training set (do NOT include the response variable!)
+  2. `test`, a matrix of *predictors* for the testing set (again, do NOT include the response variable!)
+  3. `cl` (short for "class"), a vector of response variables for the training set. These values must be in the form of a "factor". In practice, this just means we surround the response variable by the `factor()` function; see example below.
+  4. `k`, the selected value for "K" in the KNN algorithm.
+  
+The function provides as output a prediction for the class of each observation in the `test` set.
+
+We demonstrate the `knn` function on a toy dataset that includes just two predictors: `x1` and `x2`. Run the code chunk below to create the dataset:
+
+```{r}
+set.seed(1) # ensures identical results anytime you run this chunk
+x1 <- runif(1000,min=0,max=1) # randomly sample 100 values between 0 and 1
+x2 <- runif(1000,min=-2,max=0) # randomly sample 100 values between -2 and 0
+y <- unlist(lapply(1:1000,function(i){
+  sample(c("blue","red"),1,prob=c( (x1[i]-x2[i])/3, 1-(x1[i]-x2[i])/3 ) )
+})) # samples an outcome (blue or red) for each observation
+data <- data.frame(x1=x1,x2=x2,y=y) # saves the dataset with the name `data`
+```
+
+Our goal is to select an appropriate value of K. Thus, we need to divide our dataset into "training" and "test" sets. The code below first saves half of the 1000 rows as "train_indices", and then creates the necessary inputs for our `knn` function.
+
+```{r}
+set.seed(2)
+train_indices <- sample(1:1000, 500) # samples 500 row numbers at random from the numbers between 1 and 1000
+
+train_x <- data[train_indices,1:2] # saves the predictors from the training rows as a new object
+test_x <- data[-train_indices,1:2] # saves the predictors from the testing rows (i.e., NOT the training rows) as a new object
+
+train_y <- factor( data[train_indices,3] ) # saves the response variable from the training rows as a factor object
+test_y <- factor( data[-train_indices,3] ) # saves the response variable from the testing rows as a factor object
+```
+
+We are now ready to use the `knn` function! The following code runs knn with K=1, storing the predictions on our test set as `predictions_test`. Then, we calculate the testing error rate by calculating the proportion (i.e., mean) of times our predictions were incorrect. *NOTE: We can test inequality in R with the operator `!=`. For example `5 != 3` returns "TRUE" since 5 does not equal 3.*
+
+```{r}
+predictions_test_k1 <- knn(train = train_x, test = test_x, cl = train_y, k=1)
+test_error_k1 <- mean( predictions_test_k1 != test_y )
+
+print(test_error_k1)
+```
+
+You should see a test set error rate of 0.402. Similarly, we can produce the training set error rate by supplying the *train_x* dataset as the test set! In that case, the knn function makes predictions on the training set!
+
+```{r}
+predictions_train_k1 <- knn(train = train_x, test = train_x, cl = train_y, k=1)
+train_error_k1 <- mean( predictions_train_k1 != train_y )
+
+print(train_error_k1)
+```
+
+We have 0 training error when K=1: This is unsurprising, since training error decreases as flexibility increases, and K=1 is the *most flexible* form of KNN!
+
+a.  Calculate the training and testing error for K = 50, K = 100, and K= 300, respectively, saving each as an object with a similar naming convention (i.e., `train_error_k50`, `test_error_k100`, etc.)
+
+b.  Plot the training error against K. State the trend and explain why it aligns with what we would expect to see.
+
+c.  Plot the testing error against K. State the trend and explain why it aligns with what we would expect to see.
+
+d.  Based on your answers to (b) and (c), which value of K would you choose if you wanted to create a generalizable model for prediction based on this dataset?
+
+
+
+
+## Problem 3: KNN on Real Data
+
+Based on our work in Problem 2, we will now apply the KNN algorithm to a real dataset! Specifically, we will use the `Weekly` data from the ISLR package, which contains 1089 weekly observations of percentage returns for the S&P500 stock index between 1990 and 2010. There are 7 quantitative predictors (the first 7 columns) and 1 binary categorical outcome: Direction (Up or Down) that indicates if the market had a positive or negative return in a given week.
+
+```{r}
+data("Weekly") # pull in the data to R
+Weekly <- Weekly[,-1] # remove the first variable (which is categorical)
+```
+
+a.  In this problem, we will mimic our analysis from Problem 2. Start by creating a code chunk that does the following: Set a seed for reproducibility, saves 800 randomly-selected rows as training indices, and then create four objects `train_x`, `test_x`, `train_y`, `test_y`.
+
+b.  Calculate training and testing error under the KNN algorithm with K=1, 50, 100, 200. Plot each error rate as K changes.
+
+c.  Is there an optimal choice of K? Explain.
+
+
+# Part 2: Logistic Regression
+
+
+
+## Data
+
+The data set for this part comes from a study of the causes of civil wars, based on an exercise of Cosmo Shalizi’s that uses data from Collier, Paul and Anke Hoeffler (2004). *Greed and Grievance in Civil War.* Oxford Economic Papers, 56: 563–595. URL: <http://economics.ouls.ox.ac.uk/12055/1/2002-01text.pdf>. 
+
+The following code chunk loads the data:
+
+```{r warning=FALSE, message=FALSE}
+war <- na.exclude(read_csv("https://www.stat.cmu.edu/~cshalizi/uADA/15/hw/06/ch.csv")[,-1])
+war$country <- factor(war$country)
+```
+
+Every row of the data represents a combination of a country and of a five year interval — the first row is Algeria, 1965, really meaning Algeria 1965-1970. The variables are:
+
+ - `country`: The country name; 
+ - `year`: The year; 
+ - `start`: An indicator for whether a civil war began during that period: 1 indicates a civil war has begun, 0 means peace. This is the response variable.
+ - `exports`: Exports, really a measure of how dependent the country’s economy is on commodity exports; 
+ - `schooling`: Secondary school enrollment rate for males, as a percentage; 
+ - `growth`: Annual growth rate in GDP; 
+ - `peace`: The number of months since the country’s last war or the end of World War II, whichever is more recent; 
+ - `concentration`: An index of the geographic concentration of the country’s population (which would be 1 if the entire population lives in one city, and 0 if it evenly spread across the territory); 
+ - `lnpop`: The natural logarithm of the country’s population; 
+ - `fractionalization`: An index of social “fractionalization”, which tries to measure how much the country is divided along ethnic and/or religious lines;
+ - `dominance`: An index of ethnic dominance, which tries to measure how much one ethnic group runs affairs in the country.
+
+
+
+## Problem 1: Data Visualization
+
+Create the following scatterplots, each time ensuring that the response variable is on the y-axis.
+
+  + `exports` vs. `start`
+  + `peace` vs. `start`
+  + `dominance` vs. `start`.
+
+Then, for each plot comment on what you observe: Does the variable seem like a good predictor?
+
+
+
+
+
+## Problem 2: Model Selection
+
+We consider the following two logistic regression models.
+
+1. `start` by `exports`, `schooling`, `growth`, `peace`, `concentration`, `lnpop`, `fractionalization`, and `dominance`
+2. `start` by `exports`, `schooling`, `growth`, `peace`, and `lnpop`
+
+Calculate the LOOCV estimate of the *Classification Error Rate* for each model. Which model is best?
+
+*Hint: Your answer for model 1 should be precisely 0.06831395.*
+
+
+
+## Problem 3: Estimation of "best" model
+
+a.  Fit the model you selected in problem 2 to the entire dataset as an object called `best_model`.
+b.  Print the model summary.
+c.  Which coefficients have a negative slope, i.e., are associated with a decrease in the probability of a civil war?
+d.  Which coefficients are found to be statistically significant at the 1% level?
+
+
+
+
+## Problem 4: Interpretation
+
+a.  Interpret the `intercept` coefficient in context, in terms of the *probability* of a civil war starting
+b.  Interpret the `growth` coefficient in context, in terms of the *odds* of a civil war starting.
+
+
+
+
+## Problem 5: Confusion Matrices 
+
+a.  Build a confusion matrix for our training data based on the classic 0.5 probability cutoff.
+b.  What fraction of the logistic regression model's predictions are incorrect, i.e. what is the *training set* misclassification rate? 
+c.  Calculate the model's sensitivity and specificity rates.
+
+
+
+## Problem 6: ROC Curves
+
+a.  Construct an ROC curve for your logistic regression model. 
+b.  Find the "best" cutoff value, $c_0$, using your ROC curve. 
+c.  Produce a new confusion matrix based on $c_0$.
+d.  Explain why the error rate is actually higher based on $c_0$ as the cutoff value, in this case.
+
+
+
+
+
