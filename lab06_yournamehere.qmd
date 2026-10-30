@@ -176,7 +176,7 @@ Every row of the data represents a combination of a country and of a five year i
 
 
 
-## Problem 1: Data Visualization
+## Problem 4: Data Visualization
 
 Create the following scatterplots, each time ensuring that the response variable is on the y-axis.
 
@@ -189,52 +189,23 @@ Then, for each plot comment on what you observe: Does the variable seem like a g
 
 
 
+## Problem 5: Estimation of a logistic regression model
 
-## Problem 2: Model Selection
+a.  Fit the a model predicting `start` by `exports`, `schooling`, `growth`, `peace`, and `lnpop`.
 
-We consider the following two logistic regression models.
-
-1. `start` by `exports`, `schooling`, `growth`, `peace`, `concentration`, `lnpop`, `fractionalization`, and `dominance`
-2. `start` by `exports`, `schooling`, `growth`, `peace`, and `lnpop`
-
-Calculate the LOOCV estimate of the *Classification Error Rate* for each model. Which model is best?
-
-*Hint: Your answer for model 1 should be precisely 0.06831395.*
-
-
-
-## Problem 3: Estimation of "best" model
-
-a.  Fit the model you selected in problem 2 to the entire dataset as an object called `best_model`.
 b.  Print the model summary.
+
 c.  Which coefficients have a negative slope, i.e., are associated with a decrease in the probability of a civil war?
+
 d.  Which coefficients are found to be statistically significant at the 1% level?
 
 
 
 
-## Problem 4: Interpretation
+## Problem 6: Interpretation
 
 a.  Interpret the `intercept` coefficient in context, in terms of the *probability* of a civil war starting
 b.  Interpret the `growth` coefficient in context, in terms of the *odds* of a civil war starting.
-
-
-
-
-## Problem 5: Confusion Matrices 
-
-a.  Build a confusion matrix for our training data based on the classic 0.5 probability cutoff.
-b.  What fraction of the logistic regression model's predictions are incorrect, i.e. what is the *training set* misclassification rate? 
-c.  Calculate the model's sensitivity and specificity rates.
-
-
-
-## Problem 6: ROC Curves
-
-a.  Construct an ROC curve for your logistic regression model. 
-b.  Find the "best" cutoff value, $c_0$, using your ROC curve. 
-c.  Produce a new confusion matrix based on $c_0$.
-d.  Explain why the error rate is actually higher based on $c_0$ as the cutoff value, in this case.
 
 
 
